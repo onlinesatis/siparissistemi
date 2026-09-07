@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Personel — Barkod Okut</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{
+  --navy:#0f2547; --orange:#ff7a3d; --bg:#f2f4f7; --card:#ffffff;
+  --text:#1c2b3a; --muted:#6b7a8d; --line:#e3e7ee; --ok:#1f9d55; --danger:#d64545;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);}
+header{background:var(--navy);color:#fff;padding:16px 18px;text-align:center;position:sticky;top:0;z-index:20;}
+header h1{font-size:18px;margin:0;font-weight:700;}
+header .sub{font-size:12px;opacity:.8;margin-top:4px;}
+main{max-width:640px;margin:0 auto;padding:16px;padding-bottom:60px;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.04);}
+.scan-box{background:var(--navy);border-radius:14px;padding:22px;margin-bottom:16px;text-align:center;}
+.mode-toggle{display:flex;gap:8px;margin-bottom:14px;}
+.mode-btn{flex:1;padding:12px;border-radius:10px;border:2px solid var(--line);background:#fff;font-size:14px;font-weight:700;cursor:pointer;color:var(--muted);}
+.mode-btn.active{border-color:var(--orange);color:var(--navy);background:#fff3e9;}
+.mode-btn.active.iade-active{border-color:var(--danger);color:var(--danger);background:#fef2f2;}
+.scan-box label{color:#fff;font-size:14px;font-weight:600;display:block;margin-bottom:10px;}
+.scan-box input{width:100%;padding:16px;border-radius:10px;border:none;font-size:20px;text-align:center;font-weight:700;letter-spacing:1px;}
+.scan-box input:focus{outline:3px solid var(--orange);}
+.empty{text-align:center;color:var(--muted);padding:50px 20px;font-size:14px;}
+.empty-icon{font-size:48px;margin-bottom:12px;}
+table{width:100%;border-collapse:collapse;font-size:14px;margin-top:10px;}
+th,td{padding:8px 6px;text-align:left;border-bottom:1px solid var(--line);}
+th{color:var(--muted);font-size:11px;text-transform:uppercase;}
+.prod-row{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);}
+.prod-row img,.prod-row .noimg{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line);flex-shrink:0;}
+.prod-row .noimg{background:#eef1f5;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:10px;text-align:center;}
+.prod-row .info b{font-size:15px;}
+.prod-row .info div{font-size:13px;color:var(--muted);margin-top:2px;}
+.prod-row .price{margin-left:auto;font-weight:700;font-size:15px;white-space:nowrap;}
+.btn{background:var(--orange);color:#fff;border:none;padding:14px;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;width:100%;margin-top:10px;}
+.btn.secondary{background:var(--navy);}
+.pill{display:inline-block;padding:5px 14px;border-radius:20px;font-size:12px;font-weight:700;color:white;background:var(--navy);}
+.muted{color:var(--muted);font-size:13px;}
+.status-msg{text-align:center;padding:14px;border-radius:10px;font-weight:600;margin-bottom:14px;}
+.status-ok{background:#eefaf0;color:var(--ok);border:1px solid var(--ok);}
+.status-err{background:#fef2f2;color:var(--danger);border:1px solid var(--danger);}
+@media print{
+  @page{ size: A4; margin: 8mm; }
+  header,.no-print,#result{display:none!important;}
+  body{background:#fff;}
+  .print-only{display:block!important;}
+  .ship-doc{max-width:100%!important;max-height:180mm;overflow:visible;transform-origin:top left;}
+  .ship-logo .ex{font-size:26px!important;}
+  .ship-header{margin-bottom:8px!important;}
+  .ship-barcode-box{flex-basis:100%!important;padding:8px 10px!important;}
+  .ship-recipient{flex-basis:100%!important;padding:8px 10px!important;}
+  .ship-row{margin-bottom:3px!important;}
+  .ship-doc h3{font-size:12px!important;margin-bottom:6px!important;}
+  .ship-products{padding:8px 10px!important;margin-top:6px!important;}
+  .ship-product-item{padding-bottom:6px!important;margin-bottom:6px!important;}
+  .ship-product-photo,.ship-product-photo-empty{width:65px!important;height:65px!important;margin-top:6px!important;}
+  .ship-product-meta{gap:10px!important;margin-top:4px!important;}
+  .ship-toplam-box{margin-top:10px!important;padding:10px 12px!important;}
+  .ship-toplam-label{font-size:14px!important;}
+  .ship-toplam-value{font-size:26px!important;}
+}
+.print-only{display:none;}
+.ship-doc{width:100%;max-width:620px;color:#000;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;margin:0 auto;}
+.ship-header{display:flex;justify-content:center;align-items:center;margin-bottom:16px;}
+.ship-logo{text-align:center;line-height:1;}
+.ship-logo .ex{font-size:38px;font-weight:900;color:#111;letter-spacing:-2px;font-family:Georgia,'Arial Black',sans-serif;font-style:italic;}
+.ship-logo .ans{font-size:11px;font-weight:700;color:#E8442C;letter-spacing:5px;margin-top:2px;padding-left:4px;}
+.ship-top{display:flex;gap:12px;flex-wrap:wrap;}
+.ship-recipient{flex:1 1 340px;padding:14px 16px;border:1px solid #ddd;border-radius:10px;}
+.ship-barcode-box{flex:1 1 260px;padding:14px 16px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid #ddd;border-radius:10px;}
+.ship-doc h3{margin:0 0 10px;font-size:14px;font-weight:800;}
+.ship-warning{font-size:11px;margin-bottom:10px;color:#333;}
+.ship-row{display:flex;margin-bottom:6px;font-size:12px;align-items:flex-start;}
+.ship-row .ship-label{width:90px;font-weight:700;flex-shrink:0;}
+.ship-row .ship-colon{width:12px;flex-shrink:0;}
+.ship-barcode-value{margin-top:6px;font-weight:700;letter-spacing:1px;font-size:12px;}
+.ship-products{border:1px solid #ddd;border-radius:10px;padding:14px 16px;margin-top:12px;}
+.ship-toplam-box{display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding:14px 16px;background:#f5f5f5;border:2px solid #000;border-radius:10px;}
+.ship-toplam-label{font-size:16px;font-weight:800;letter-spacing:1px;}
+.ship-toplam-value{font-size:28px;font-weight:900;}
+.ship-product-item{padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid #eee;}
+.ship-product-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0;}
+.ship-product-top{display:flex;gap:10px;align-items:flex-start;}
+.ship-product-num{width:26px;height:26px;border-radius:50%;border:1px solid #000;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;font-size:12px;}
+.ship-product-photo{width:70px;height:70px;border-radius:50%;object-fit:cover;border:1px solid #ddd;display:block;margin:10px auto 0;}
+.ship-product-photo-empty{width:70px;height:70px;border-radius:50%;border:1px solid #ddd;display:flex;align-items:center;justify-content:center;font-size:9px;color:#666;text-align:center;margin:10px auto 0;}
+.ship-product-info b{font-size:13px;}
+.ship-product-meta{display:flex;gap:18px;font-size:11px;margin-top:8px;flex-wrap:wrap;}
+.ship-product-meta div div:first-child{font-size:9px;color:#777;margin-bottom:3px;text-transform:uppercase;letter-spacing:.3px;}
+.ship-product-meta div div:last-child{font-weight:700;}
+</style>
+</head>
+<body>
+<div id="printArea" class="print-only"></div>
+<header>
+  <h1>📦 Personel — Sipariş Hazırlama</h1>
+  <div class="sub" id="connStatus">Bağlanıyor...</div>
+</header>
+<main>
+  <div class="mode-toggle no-print">
+    <button id="modeHazirlamaBtn" class="mode-btn active" onclick="setMode('hazirlama')">📦 Sipariş Hazırlama</button>
+    <button id="modeIadeBtn" class="mode-btn" onclick="setMode('iade')">↩️ İade Kabul</button>
+  </div>
+  <div class="scan-box no-print">
+    <label id="scanLabel">🔍 Barkodu okut (okuyucu otomatik yazar)</label>
+    <input id="scanInput" autocomplete="off" autofocus placeholder="Barkod bekleniyor...">
+    <button id="cameraBtn" class="btn secondary" style="margin-top:12px;" onclick="toggleCamera()">📷 Telefon Kamerasıyla Tara</button>
+    <div id="cameraArea" style="display:none;margin-top:12px;">
+      <video id="cameraVideo" style="width:100%;border-radius:10px;" playsinline webkit-playsinline muted autoplay></video>
+      <canvas id="cameraCanvas" style="display:none;"></canvas>
+    </div>
+  </div>
+  <div class="card no-print" style="text-align:center;">
+    <label style="display:block;font-weight:700;margin-bottom:10px;color:var(--navy);">👤 Müşteri Telefonu ile Ara</label>
+    <input id="phoneSearchInput" autocomplete="off" placeholder="0555 555 55 55" inputmode="tel"
+      style="width:100%;padding:14px;border-radius:10px;border:2px solid var(--line);font-size:16px;text-align:center;"
+      onkeydown="if(event.key==='Enter'){ event.preventDefault(); const v=this.value.trim(); this.value=''; if(v) processScannedCode(v); }">
+  </div>
+  <div id="result">
+    <div class="empty">
+      <div class="empty-icon">📷</div>
+      Sipariş barkodunu okutunca detaylar burada görünecek.
+    </div>
+  </div>
+</main>
+
+<script>
+/* Aynı domain'de kayıtlı olabilecek eski Service Worker'ı temizle (güncelleme görünmeme sorununu önler) */
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.getRegistrations().then(function(registrations){
+    for(let reg of registrations){ reg.unregister(); }
+  });
+  if('caches' in window){
+    caches.keys().then(function(names){
+      names.forEach(function(name){ caches.delete(name); });
+    });
+  }
+}
+const firebaseConfig = {
+  apiKey: "AIzaSyB3ftIDymHCtHkldL_nk4FtSyvMYDfxv3U",
+  authDomain: "exans35.firebaseapp.com",
+  databaseURL: "https://exans35-default-rtdb.firebaseio.com",
+  projectId: "exans35",
+  storageBucket: "exans35.firebasestorage.app",
+  messagingSenderId: "701070447690",
+  appId: "1:701070447690:web:3faf0b316383fd5df3c2b3"
+};
+
+let cloudData = { orders: [], customers: [], products: [] };
+let currentDisplayedOrder = null;
+let fbDb = null;
+
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+/* ================= BARKOD ÇİZİMİ (ana programla aynı mantık) ================= */
+function code39Pattern(ch){
+  const table = {
+    '0':'000110100','1':'100100001','2':'001100001','3':'101100000',
+    '4':'000110001','5':'100110000','6':'001110000','7':'000100101',
+    '8':'100100100','9':'001100100','*':'010010100'
+  };
+  return table[ch] || table['0'];
+}
+function renderCode39Bars(svgId, value, opts){
+  opts = opts || {};
+  const height = opts.height || 50;
+  const narrow = opts.narrow || 2;
+  const wide = narrow*3;
+  const gap = narrow;
+  const digits = String(value).replace(/[^0-9]/g,'') || '0';
+  const chars = ('*'+digits+'*').split('');
+  const rects = [];
+  let x = 4;
+  chars.forEach((ch,ci)=>{
+    const pattern = code39Pattern(ch);
+    for(let i=0;i<pattern.length;i++){
+      const isBar = i%2===0;
+      const w = pattern[i]==='1' ? wide : narrow;
+      if(isBar) rects.push('<rect x="'+x+'" y="0" width="'+w+'" height="'+height+'" fill="#000"/>');
+      x += w;
+    }
+    if(ci < chars.length-1) x += gap;
+  });
+  x += 4;
+  const svg = document.getElementById(svgId);
+  if(svg){
+    svg.setAttribute('width', x);
+    svg.setAttribute('height', height);
+    svg.setAttribute('viewBox', '0 0 '+x+' '+height);
+    svg.innerHTML = rects.join('');
+  }
+  return x;
+}
+function safeRenderBarcode(svgId, value, opts){
+  try{ return renderCode39Bars(svgId, value, opts); }
+  catch(e){
+    const el = document.getElementById(svgId);
+    if(el) el.outerHTML = '<div style="font-family:monospace;font-size:15px;font-weight:700;letter-spacing:2px;border:1px dashed #999;padding:8px;">'+esc(value)+'</div>';
+    return null;
+  }
+}
+function renderJustifiedDigits(elId, value, width){
+  const el = document.getElementById(elId);
+  if(!el) return;
+  el.style.width = (width||160)+'px';
+  el.style.display = 'flex';
+  el.style.justifyContent = 'space-between';
+  el.style.margin = '6px auto 0';
+  el.innerHTML = String(value).split('').map(d=>'<span>'+esc(d)+'</span>').join('');
+}
+
+/* ================= EXANS TASARIMLI FİŞ (ana programla birebir aynı) ================= */
+function fmtMoneyFull(n){ return (Number(n)||0).toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2})+' ₺'; }
+function buildShipDocHtml(order, c, products){
+  const productsHtml = (order.items||[]).map((i,idx)=>{
+    const p = products.find(x=>x.id===i.productId);
+    const photoSrc = i.photo || (p && p.photo) || null;
+    const photoHtml = photoSrc
+      ? '<img class="ship-product-photo" src="'+photoSrc+'">'
+      : '<div class="ship-product-photo-empty">Foto<br>yok</div>';
+    return '<div class="ship-product-item">'+
+      '<div class="ship-product-top">'+
+        '<div class="ship-product-num">'+(idx+1)+'</div>'+
+        '<div class="ship-product-info">'+
+          '<b>'+esc(i.name)+'</b>'+
+          '<div class="ship-product-meta">'+
+            '<div><div>Adet</div><div>'+i.qty+' Adet</div></div>'+
+            '<div><div>Renk</div><div>'+esc(i.color||'—')+'</div></div>'+
+            '<div><div>Beden</div><div>'+esc(i.size||'—')+'</div></div>'+
+            '<div><div>Barkod</div><div>'+esc(p&&p.barcode?p.barcode:'—')+'</div></div>'+
+            '<div><div>Fiyat</div><div>'+fmtMoneyFull(i.price*i.qty)+'</div></div>'+
+          '</div>'+
+        '</div>'+
+      '</div>'+
+      photoHtml+
+    '</div>';
+  }).join('');
+
+  return '<div class="ship-doc">'+
+    '<div class="ship-header">'+
+      '<div class="ship-logo"><div class="ex">EX</div><div class="ans">A&nbsp;&nbsp;N&nbsp;&nbsp;S</div></div>'+
+    '</div>'+
+    '<div class="ship-top">'+
+      '<div class="ship-recipient">'+
+        '<h3>Alıcı Bilgileri</h3>'+
+        (c&&c.phone? '<div class="ship-warning">📞 NOT: Herhangi bir sorun olduğunda '+esc(c.phone)+' numaralı telefonu arayınız.<br><b style="font-size:12px;">LÜTFEN BU NUMARAYI ARAYINIZ</b></div>':'')+
+        '<div class="ship-row"><span class="ship-label">Sipariş No</span><span class="ship-colon">:</span><span>'+esc(order.orderNo)+'</span></div>'+
+        '<div class="ship-row" style="margin-top:4px;margin-bottom:8px;"><span class="ship-label" style="font-size:18px;">Ad-Soyad</span><span class="ship-colon" style="font-size:18px;">:</span><span style="font-size:22px;font-weight:900;color:#000;">'+esc(c?c.name:'—')+'</span></div>'+
+        '<div class="ship-row"><span class="ship-label">Telefon</span><span class="ship-colon">:</span><span>'+esc(c?c.phone:'—')+'</span></div>'+
+        '<div class="ship-row" style="margin-top:6px;"><span class="ship-label" style="font-size:16px;">Adres</span><span class="ship-colon" style="font-size:16px;">:</span><span style="font-size:16px;font-weight:800;color:#000;">'+esc(c&&c.address?c.address:'—')+'</span></div>'+
+      '</div>'+
+      '<div class="ship-barcode-box">'+
+        '<h3>Kargo Kodu</h3>'+
+        '<svg id="printBarcodeSvg" style="max-width:100%;width:190px;height:auto;"></svg>'+
+        '<div id="barcodeValueBox" class="ship-barcode-value"></div>'+
+        '<div style="margin-top:14px;" id="printQrCodeCanvas"></div>'+
+      '</div>'+
+    '</div>'+
+    '<div class="ship-products">'+
+      '<h3>Ürün Bilgileri</h3>'+
+      productsHtml+
+    '</div>'+
+    '<div class="ship-toplam-box">'+
+      '<span class="ship-toplam-label">TOPLAM</span>'+
+      '<span class="ship-toplam-value">'+fmtMoneyFull(order.total)+'</span>'+
+    '</div>'+
+  '</div>';
+}
+function renderShipDocBarcodeAndQr(order){
+  const barW = safeRenderBarcode('printBarcodeSvg', order.barcode, {height:32,narrow:1.3,displayValue:false});
+  const barcodeSvgEl = document.getElementById('printBarcodeSvg');
+  const actualBarW = barcodeSvgEl ? barcodeSvgEl.getBoundingClientRect().width : barW;
+  renderJustifiedDigits('barcodeValueBox', order.barcode, actualBarW);
+
+  const qrData = window.location.href.split('/').slice(0,-1).join('/') + '/calisan.html?order=' + order.orderNo;
+  const qrContainer = document.getElementById('printQrCodeCanvas');
+  if(qrContainer){
+    qrContainer.innerHTML = '';
+    try{ new QRCode(qrContainer, {text: qrData, width:85, height:85, correctLevel: QRCode.CorrectLevel.L}); }
+    catch(e){ console.log('QR hatası:', e); }
+  }
+}
+function printOrderNow(order){
+  const c = (cloudData.customers||[]).find(x=>x.id===order.customerId);
+  document.getElementById('printArea').innerHTML = buildShipDocHtml(order, c, cloudData.products||[]);
+  renderShipDocBarcodeAndQr(order);
+  setTimeout(()=>window.print(), 150);
+}
+function fmtMoney(n){ return (Number(n)||0).toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2})+' ₺'; }
+
+try{
+  firebase.initializeApp(firebaseConfig);
+  fbDb = firebase.database();
+  document.getElementById('connStatus').textContent = 'Giriş yapılıyor...';
+
+  let dataListenerAttached = false;
+  firebase.auth().onAuthStateChanged((user)=>{
+    if(user && !dataListenerAttached){
+      dataListenerAttached = true;
+      fbDb.ref('magazamData').on('value', (snapshot)=>{
+        const data = snapshot.val();
+        if(data){
+          cloudData = data;
+          document.getElementById('connStatus').textContent = '🟢 Bağlı — canlı veri';
+        }
+      }, (err)=>{
+        document.getElementById('connStatus').textContent = '🔴 Okuma hatası: '+(err.code||err.message||err);
+      });
+    }
+  });
+
+  firebase.auth().signInAnonymously().catch((e)=>{
+    document.getElementById('connStatus').textContent = '🔴 Giriş başarısız: '+(e.code||e.message);
+  });
+}catch(e){
+  document.getElementById('connStatus').textContent = '🔴 Bağlanamadı: '+(e.message||e);
+}
+
+function findOrder(code){
+  const orders = cloudData.orders || [];
+  // 1) QR formatı: siparişNo|telefon
+  if(code.includes('|')){
+    const orderNo = parseInt(code.split('|')[0]);
+    const found = orders.find(o=>o.orderNo===orderNo);
+    if(found) return found;
+  }
+  // 2) Sipariş barkodu (o.barcode)
+  let found = orders.find(o=>o.barcode===code);
+  if(found) return found;
+  // 3) Ürün barkodu okutulduysa, o ürünü içeren en son "Yeni/Hazırlanıyor" siparişi bul
+  const products = cloudData.products || [];
+  const prod = products.find(p=>p.barcode===code);
+  if(prod){
+    const withProd = orders.filter(o=>(o.items||[]).some(i=>i.productId===prod.id) && (o.status==='Yeni'||o.status==='Hazırlanıyor'));
+    if(withProd.length) return withProd[withProd.length-1];
+  }
+  return null;
+}
+
+function showOrder(order, customBanner){
+  currentDisplayedOrder = order;
+  const customers = cloudData.customers || [];
+  const products = cloudData.products || [];
+  const c = customers.find(x=>x.id===order.customerId);
+
+  const itemsHtml = (order.items||[]).map(i=>{
+    const p = products.find(x=>x.id===i.productId);
+    const photoSrc = i.photo || (p && p.photo) || null;
+    const img = photoSrc
+      ? '<img src="'+photoSrc+'">'
+      : '<div class="noimg">Foto yok</div>';
+    return '<div class="prod-row">'+img+
+      '<div class="info"><b>'+esc(i.name)+'</b>'+
+      '<div>Renk: '+esc(i.color||'—')+' &nbsp;·&nbsp; Beden: '+esc(i.size||'—')+' &nbsp;·&nbsp; Adet: '+i.qty+'</div></div>'+
+      '<div class="price">'+fmtMoney(i.price*i.qty)+'</div>'+
+    '</div>';
+  }).join('');
+
+  const bannerHtml = customBanner || ('<div class="status-msg status-ok">✅ Sipariş #'+esc(order.orderNo)+' bulundu</div>');
+
+  // Kargo durumu - insan diline çevir ve şube bilgisi varsa göster
+  const statusMap = {
+    'Yeni': {icon:'🆕', text:'Yeni Sipariş — Henüz Hazırlanmadı', color:'#6b7a8d'},
+    'Hazırlanıyor': {icon:'📦', text:'Hazırlanıyor', color:'#E3A857'},
+    'Kargoya Verildi': {icon:'🚚', text:'Yolda', color:'#0071E3'},
+    'Teslim Edildi': {icon:'✅', text:'Teslim Edildi', color:'#1f9d55'},
+    'İade Edildi': {icon:'↩️', text:'İade Edildi', color:'#d64545'}
+  };
+  const st = statusMap[order.status] || {icon:'❔', text: order.status||'—', color:'#6b7a8d'};
+  let cargoDetailHtml = '<div class="card" style="border-left:5px solid '+st.color+';">'+
+    '<div style="font-size:20px;font-weight:800;color:'+st.color+';">'+st.icon+' '+st.text+'</div>';
+  if(order.subeAdi){
+    cargoDetailHtml += '<div style="margin-top:8px;font-size:14px;">📍 Şu an: <b>'+esc(order.subeAdi)+'</b> Aras Kargo şubesinde</div>';
+  }
+  if(order.cargo){
+    cargoDetailHtml += '<div style="margin-top:6px;font-size:13px;color:var(--muted);">Kargo Firması: '+esc(order.cargo)+'</div>';
+  }
+  if(order.tracking){
+    cargoDetailHtml += '<div style="margin-top:4px;font-size:13px;color:var(--muted);">Takip No: '+esc(order.tracking)+'</div>';
+  }
+  cargoDetailHtml += '</div>';
+
+  document.getElementById('result').innerHTML =
+    bannerHtml+
+    cargoDetailHtml+
+    '<div class="card">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">'+
+        '<h2 style="margin:0;">Sipariş #'+esc(order.orderNo)+'</h2>'+
+        '<span class="pill">'+esc(order.status||'—')+'</span>'+
+      '</div>'+
+      '<table>'+
+        '<tr><th>Ad Soyad</th><td>'+esc(c?c.name:'—')+'</td></tr>'+
+        '<tr><th>Telefon</th><td>'+esc(c?c.phone:'—')+'</td></tr>'+
+        '<tr><th>Adres</th><td>'+esc(c&&c.address?c.address:'—')+'</td></tr>'+
+      '</table>'+
+    '</div>'+
+    '<div class="card">'+
+      '<h2 style="margin-top:0;">Ürünler</h2>'+
+      itemsHtml+
+      '<div style="text-align:right;margin-top:14px;font-size:18px;"><b>Toplam: '+fmtMoney(order.total)+'</b></div>'+
+    '</div>'+
+    '<button class="btn no-print" onclick="printOrderNow(currentDisplayedOrder)">🖨️ Fişi Yazdır</button>'+
+    '<button class="btn secondary no-print" onclick="clearResult()">✕ Temizle, Yeni Barkod Okut</button>';
+}
+
+let currentMode = 'hazirlama';
+let cameraStream = null;
+let cameraActive = false;
+let jsQRLoaded = false;
+
+function loadJsQR(){
+  return new Promise((resolve)=>{
+    if(typeof jsQR !== 'undefined'){ jsQRLoaded = true; resolve(); return; }
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+    script.onload = ()=>{ jsQRLoaded = true; resolve(); };
+    script.onerror = resolve;
+    document.head.appendChild(script);
+  });
+}
+// Kamera kütüphanesini sayfa açılır açılmaz, butona basmadan ÖNCE hazırla
+loadJsQR();
+
+async function toggleCamera(){
+  if(cameraActive){
+    stopCamera();
+    return;
+  }
+  // getUserMedia'yı tıklama anından hemen çağır (aradan zaman geçerse bazı telefonlar izni reddediyor)
+  const video = document.getElementById('cameraVideo');
+  const area = document.getElementById('cameraArea');
+  try{
+    cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    video.srcObject = cameraStream;
+    video.setAttribute('muted', '');
+    video.muted = true;
+    video.play();
+    area.style.display = 'block';
+    document.getElementById('cameraBtn').textContent = '✕ Kamerayı Kapat';
+    cameraActive = true;
+    if(!jsQRLoaded) await loadJsQR();
+    requestAnimationFrame(cameraScanLoop);
+  }catch(e){
+    document.getElementById('result').innerHTML =
+      '<div class="status-msg status-err">❌ Kameraya erişilemedi: '+esc(e.message||e.name||'bilinmeyen hata')+'</div>'+
+      '<div class="empty"><div class="empty-icon">🔒</div>Tarayıcı ayarlarından bu siteye kamera izni verildiğinden emin ol, sonra tekrar dene.</div>';
+  }
+}
+
+function stopCamera(){
+  if(cameraStream){ cameraStream.getTracks().forEach(t=>t.stop()); cameraStream = null; }
+  document.getElementById('cameraArea').style.display = 'none';
+  document.getElementById('cameraBtn').textContent = '📷 Telefon Kamerasıyla Tara';
+  cameraActive = false;
+}
+
+function cameraScanLoop(){
+  if(!cameraActive) return;
+  const video = document.getElementById('cameraVideo');
+  const canvas = document.getElementById('cameraCanvas');
+  if(video.readyState === video.HAVE_ENOUGH_DATA && typeof jsQR !== 'undefined'){
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height);
+    if(code){
+      if(navigator.vibrate) navigator.vibrate(100);
+      stopCamera();
+      processScannedCode(code.data);
+      return;
+    }
+  }
+  requestAnimationFrame(cameraScanLoop);
+}
+
+function processScannedCode(rawData){
+  // QR bir URL ise (http/https ile başlıyorsa, dosya adı ne olursa olsun), içindeki ?order= kısmını çıkar
+  let code = rawData;
+  try{
+    if(rawData.startsWith('http://') || rawData.startsWith('https://')){
+      const url = new URL(rawData);
+      const orderNo = url.searchParams.get('order');
+      if(orderNo){
+        const order = (cloudData.orders||[]).find(o=>String(o.orderNo)===String(orderNo));
+        if(order){
+          if(currentMode === 'iade') markOrderAsReturned(order); else showOrder(order);
+          return;
+        } else {
+          document.getElementById('result').innerHTML =
+            '<div class="status-msg status-err">❌ Sipariş #'+esc(orderNo)+' bulunamadı (bulutta henüz yok ya da bağlantı yavaş)</div>'+
+            '<div class="empty"><div class="empty-icon">⏳</div>Birkaç saniye bekleyip tekrar dene.</div>';
+          return;
+        }
+      }
+    }
+  }catch(e){}
+  // Değilse direkt barkod/QR verisi olarak işle
+  const order = findOrder(code);
+  if(order){
+    if(currentMode === 'iade') markOrderAsReturned(order); else showOrder(order);
+    return;
+  }
+
+  // Telefon numarası gibi görünüyorsa (çoğunlukla rakam, en az 7 hane), müşteri telefonuna göre ara
+  const digits = code.replace(/[^0-9]/g,'');
+  if(digits.length >= 7){
+    const customers = cloudData.customers || [];
+    const matchedCustomers = customers.filter(c => (c.phone||'').replace(/[^0-9]/g,'').includes(digits));
+    if(matchedCustomers.length){
+      const matchedIds = matchedCustomers.map(c=>c.id);
+      const matchedOrders = (cloudData.orders||[]).filter(o => matchedIds.includes(o.customerId))
+        .sort((a,b) => new Date(b.date) - new Date(a.date));
+      if(matchedOrders.length === 1){
+        if(currentMode === 'iade') markOrderAsReturned(matchedOrders[0]); else showOrder(matchedOrders[0]);
+        return;
+      } else if(matchedOrders.length > 1){
+        showOrderPickList(matchedOrders, customers);
+        return;
+      }
+    }
+  }
+
+  document.getElementById('result').innerHTML =
+    '<div class="status-msg status-err">❌ Bu barkoda ait sipariş bulunamadı: '+esc(code)+'</div>'+
+      '<div class="empty"><div class="empty-icon">🤔</div>Barkodu kontrol edip tekrar dene.</div>';
+}
+
+function showOrderPickList(orders, customers){
+  let html = '<div class="status-msg status-ok">📋 Bu telefona ait '+orders.length+' sipariş bulundu, birini seç:</div>';
+  html += '<div class="card">';
+  orders.forEach(o=>{
+    const c = customers.find(x=>x.id===o.customerId);
+    html += '<div onclick="pickOrderFromList(\''+o.id+'\')" style="padding:12px 6px;cursor:pointer;border-bottom:1px solid var(--line);">'+
+      '<b>Sipariş #'+esc(o.orderNo)+'</b> — '+esc(c?c.name:'—')+
+      '<div style="font-size:12px;color:var(--muted);margin-top:2px;">'+new Date(o.date).toLocaleDateString('tr-TR')+' · '+esc(o.status)+' · '+fmtMoney(o.total)+'</div>'+
+    '</div>';
+  });
+  html += '</div>';
+  document.getElementById('result').innerHTML = html;
+}
+function pickOrderFromList(orderId){
+  const order = (cloudData.orders||[]).find(o=>o.id===orderId);
+  if(!order) return;
+  if(currentMode === 'iade') markOrderAsReturned(order); else showOrder(order);
+}
+
+function setMode(mode){
+  currentMode = mode;
+  document.getElementById('modeHazirlamaBtn').classList.toggle('active', mode==='hazirlama');
+  document.getElementById('modeIadeBtn').classList.toggle('active', mode==='iade');
+  document.getElementById('modeIadeBtn').classList.toggle('iade-active', mode==='iade');
+  const scanBox = document.querySelector('.scan-box');
+  const label = document.getElementById('scanLabel');
+  if(mode==='iade'){
+    scanBox.style.background = 'var(--danger)';
+    label.textContent = '↩️ İade barkodunu okut — otomatik iade olarak işaretlenecek';
+  } else {
+    scanBox.style.background = 'var(--navy)';
+    label.textContent = '🔍 Barkodu okut (okuyucu otomatik yazar)';
+  }
+  clearResult();
+}
+
+function markOrderAsReturned(order){
+  const orders = cloudData.orders || [];
+  const idx = orders.findIndex(o=>o.id===order.id);
+  if(idx === -1) return;
+
+  const kargoUcreti = cloudData.kargoUcreti || 260;
+  orders[idx].status = 'İade Edildi';
+  if(!orders[idx].returns) orders[idx].returns = [];
+  const zatenEklendi = orders[idx].returns.some(r => r.source === 'personel-tarama');
+  if(!zatenEklendi){
+    (orders[idx].items||[]).forEach((item, itemIdx) => {
+      orders[idx].returns.push({
+        id: 'ret_'+Date.now().toString(36)+Math.random().toString(36).slice(2,7),
+        date: new Date().toISOString(), type: 'iade',
+        name: item.name, color: item.color, size: item.size, qty: item.qty, price: item.price,
+        returnCargoPrice: itemIdx === 0 ? kargoUcreti : 0,
+        note: 'Personel barkod taramasıyla otomatik iade kaydı',
+        source: 'personel-tarama', received: true
+      });
+    });
+  }
+
+  // Müşteriyi kara listeye al
+  const customers = cloudData.customers || [];
+  const cIdx = customers.findIndex(c=>c.id===order.customerId);
+  if(cIdx !== -1 && !customers[cIdx].blacklisted){
+    customers[cIdx].blacklisted = true;
+    customers[cIdx].blacklistReason = 'İade Yapılan Müşteri';
+    customers[cIdx].blacklistDate = new Date().toLocaleDateString('tr-TR');
+  }
+
+  // Buluta yaz
+  fbDb.ref('magazamData/orders').set(orders).then(()=>{
+    const iadeBanner = '<div class="status-msg status-err">↩️ Sipariş #'+esc(order.orderNo)+' İADE olarak işaretlendi ve kaydedildi</div>';
+    showOrder(orders[idx], iadeBanner);
+  }).catch((e)=>{
+    document.getElementById('result').innerHTML =
+      '<div class="status-msg status-err">❌ Kayıt hatası, internet bağlantını kontrol et: '+esc(e.message)+'</div>';
+  });
+  if(cIdx !== -1) fbDb.ref('magazamData/customers').set(customers);
+}
+
+function clearResult(){
+  document.getElementById('result').innerHTML =
+    '<div class="empty"><div class="empty-icon">📷</div>Sipariş barkodunu okutunca detaylar burada görünecek.</div>';
+  const inp = document.getElementById('scanInput');
+  inp.value = '';
+  inp.focus();
+}
+
+document.getElementById('scanInput').addEventListener('keydown', function(e){
+  if(e.key !== 'Enter') return;
+  e.preventDefault();
+  const code = this.value.trim();
+  this.value = '';
+  if(!code) return;
+  processScannedCode(code);
+});
+
+// Sadece boş alana (buton/input olmayan yere) tıklanınca barkod kutusuna odaklan
+document.addEventListener('click', function(e){
+  if(e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+  if(e.target.tagName === 'INPUT' || e.target.tagName === 'VIDEO') return;
+  if(cameraActive) return;
+  document.getElementById('scanInput').focus();
+});
+
+// URL üzerinden ?order=1005 ile açıldıysa (QR'dan geldiyse) o siparişi otomatik göster
+window.addEventListener('load', function(){
+  document.getElementById('scanInput').focus();
+  const params = new URLSearchParams(window.location.search);
+  const orderNo = params.get('order');
+  if(orderNo){
+    document.getElementById('result').innerHTML =
+      '<div class="status-msg status-ok">⏳ Sipariş #'+esc(orderNo)+' aranıyor...</div>';
+    let found = false;
+    const checkInterval = setInterval(()=>{
+      if((cloudData.orders||[]).length > 0){
+        const order = (cloudData.orders||[]).find(o=>String(o.orderNo)===String(orderNo));
+        if(order){
+          found = true;
+          clearInterval(checkInterval);
+          if(currentMode === 'iade') markOrderAsReturned(order); else showOrder(order);
+        }
+      }
+    }, 300);
+    setTimeout(()=>{
+      clearInterval(checkInterval);
+      if(!found){
+        document.getElementById('result').innerHTML =
+          '<div class="status-msg status-err">❌ Sipariş #'+esc(orderNo)+' bulunamadı</div>'+
+          '<div class="empty"><div class="empty-icon">🤔</div>Bu sipariş silinmiş olabilir, ya da internet bağlantısı yavaş — sayfayı yenileyip tekrar dene.</div>';
+      }
+    }, 6000);
+  }
+});
+</script>
+</body>
+</html>
